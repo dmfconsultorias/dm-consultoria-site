@@ -686,6 +686,55 @@ body { background-color: var(--color-bg); color: var(--color-text); -webkit-font
   
 
 <script>
+document.addEventListener('DOMContentLoaded', function () {
+  const viewer = document.querySelector('.image-viewer');
+  if (!viewer) return;
+
+  document.querySelectorAll('.shot-open').forEach(function (button) {
+    button.addEventListener('click', function () {
+      const source = button.querySelector('img');
+      if (!source) return;
+
+      viewer.innerHTML = '';
+      const panel = document.createElement('div');
+      panel.className = 'image-viewer-content';
+
+      const toolbar = document.createElement('div');
+      toolbar.className = 'image-viewer-toolbar';
+      const heading = document.createElement('h2');
+      heading.id = 'image-viewer-title';
+      heading.textContent = source.alt || 'Imagem demonstrativa';
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.setAttribute('aria-label', 'Fechar imagem ampliada');
+      close.textContent = '✕';
+      close.addEventListener('click', function () { viewer.close(); });
+      toolbar.append(heading, close);
+
+      const enlarged = document.createElement('img');
+      enlarged.src = source.currentSrc || source.src;
+      enlarged.alt = source.alt || 'Imagem demonstrativa ampliada';
+      panel.append(toolbar, enlarged);
+      viewer.append(panel);
+
+      if (typeof viewer.showModal === 'function') viewer.showModal();
+      else viewer.setAttribute('open', '');
+      close.focus();
+    });
+  });
+
+  viewer.addEventListener('click', function (event) {
+    if (event.target === viewer) viewer.close();
+  });
+  viewer.addEventListener('click', function (event) {
+    if (event.target.closest('[data-close-viewer]')) viewer.close();
+  });
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && viewer.open) viewer.close();
+  });
+});
+</script>
+<script>
 document.addEventListener('DOMContentLoaded', function(){
  const form=document.getElementById('contact-form'); if(!form) return;
  const status=document.getElementById('form-status');
@@ -700,13 +749,14 @@ document.addEventListener('DOMContentLoaded', function(){
    const response=await fetch('https://formsubmit.co/ajax/dmfconsultorias@gmail.com',{
     method:'POST', headers:{'Accept':'application/json'}, body:data
    });
-   if(!response.ok) throw new Error('Falha no envio');
-   const result=await response.json();
-   if(result.success==='false') throw new Error(result.message||'Falha no envio');
-   status.textContent='Mensagem enviada com sucesso! Em breve entraremos em contato.';
+   const responseText=await response.text();
+   let result={};
+   try { result=JSON.parse(responseText); } catch (_) {}
+   if(!response.ok || result.success==='false') throw new Error(result.message || ('Erro HTTP '+response.status));
+   status.textContent=result.message || 'Solicitação recebida. Se esta for a primeira utilização, confira a caixa de entrada de dmfconsultorias@gmail.com e confirme o cadastro do FormSubmit.';
    form.reset();
   }catch(error){
-   status.textContent='Não foi possível enviar sua mensagem agora. Tente novamente ou fale conosco pelo WhatsApp.';
+   status.textContent='Não foi possível enviar. Detalhe: '+(error.message || 'falha de conexão')+'. Você também pode falar conosco pelo WhatsApp.';
   }finally{
    button.disabled=false; button.textContent='Enviar mensagem';
   }
