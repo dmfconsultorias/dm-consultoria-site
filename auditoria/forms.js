@@ -9,3 +9,5 @@ export function calculate(f){const has=(...ks)=>ks.every(k=>Number.isFinite(f[k]
 export function fillFields(root,fields){for(const e of root.querySelectorAll('[data-key]'))e.value=fields?.[e.dataset.key]??'';}
 
 export function maturity(n){if(!Number.isFinite(n)||n<1||n>5)return null;const r=Math.round(n*100)/100;return r<1.8?'Estrutura vulnerável':r<2.6?'Gestão reativa':r<3.4?'Em desenvolvimento':r<4.2?'Gestão controlada':'Gestão avançada';}
+
+export function fieldLabels(kind){return Object.fromEntries((specs[kind]||[]).map(([k,l])=>[k,l]));}
