@@ -1,4 +1,14 @@
-const BASE=new URL('./',self.location.href);const CACHE='gar-auditoria-shell-v13d4-config1';const SHELL=['index.html','config.js','app.js','forms.js','evidence.js','offline.js','manifest.webmanifest','icon-192.png','icon-512.png'].map(p=>new URL(p,BASE).href);
-self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL))));
-self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k.startsWith('gar-auditoria-shell-')&&k!==CACHE).map(k=>caches.delete(k))))));
-self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method==='GET'&&u.origin==='https://cdn.jsdelivr.net'&&u.pathname.startsWith('/npm/')){e.respondWith(caches.open(CACHE).then(async c=>{try{const r=await fetch(e.request);if(r.ok)await c.put(e.request,r.clone());return r;}catch(err){return (await c.match(e.request))||Response.error();}}));return;}if(e.request.method!=='GET'||u.origin!==BASE.origin||!u.pathname.startsWith(BASE.pathname))return;if(e.request.mode==='navigate'&&(u.pathname===BASE.pathname||u.pathname===BASE.pathname+'index.html')){e.respondWith(fetch(e.request).catch(()=>caches.open(CACHE).then(c=>c.match(SHELL[0]))));return;}if(SHELL.includes(u.href))e.respondWith(fetch(e.request).catch(()=>caches.open(CACHE).then(c=>c.match(e.request))));});
+const BASE=new URL('./',self.location.href);
+const CACHE='gar-auditoria-shell-v13d11';
+const SHELL=['index.html','config.js','app.js','forms.js','evidence.js','offline.js','manifest.webmanifest','icon-192.png','icon-512.png'].map(p=>new URL(p,BASE).href);
+self.addEventListener('install',e=>e.waitUntil((async()=>{const c=await caches.open(CACHE);await c.addAll(SHELL.map(u=>new Request(u,{cache:'reload'})));await self.skipWaiting();})()));
+self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
+self.addEventListener('message',e=>{if(e.data==='GAR_VERSION')e.ports[0]?.postMessage('V13D11');});
+self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET')return;
+ const canonical=new URL(u.pathname,u.origin).href;
+ const nav=e.request.mode==='navigate'&&u.origin===BASE.origin&&(u.pathname===BASE.pathname||u.pathname===BASE.pathname+'index.html');
+ const local=u.origin===BASE.origin&&SHELL.includes(canonical);
+ const cdn=u.origin==='https://cdn.jsdelivr.net'&&u.pathname.startsWith('/npm/')&&e.request.destination==='script';
+ if(!nav&&!local&&!cdn)return;
+ e.respondWith((async()=>{const c=await caches.open(CACHE);const key=nav?SHELL[0]:local?canonical:e.request;const cached=await c.match(key);if(cached)return cached;const r=await fetch(e.request);if(r.ok&&r.type!=='opaque')await c.put(key,r.clone());return r;})());
+});
