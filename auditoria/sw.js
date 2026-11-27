@@ -1,9 +1,9 @@
 const BASE=new URL('./',self.location.href);
-const CACHE='gar-auditoria-shell-v14-1-1';
+const CACHE='gar-auditoria-shell-v14-1-1a';
 const SHELL=['index.html','config.js','app.js','forms.js','evidence.js','offline.js','manifest.webmanifest','icon-192.png','icon-512.png'].map(p=>new URL(p,BASE).href);
 self.addEventListener('install',e=>e.waitUntil((async()=>{const c=await caches.open(CACHE);await c.addAll(SHELL.map(u=>new Request(u,{cache:'reload'})));await self.skipWaiting();})()));
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
-self.addEventListener('message',e=>{if(e.data==='GAR_VERSION')e.ports[0]?.postMessage('V14.1.1');});
+self.addEventListener('message',e=>{if(e.data==='GAR_VERSION')e.ports[0]?.postMessage('V14.1.1a');});
 self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET')return;
  const canonical=new URL(u.pathname,u.origin).href;
  const nav=e.request.mode==='navigate'&&u.origin===BASE.origin&&(u.pathname===BASE.pathname||u.pathname===BASE.pathname+'index.html');
