@@ -74,6 +74,19 @@ function interventionPanel(rows){
  const actions=rows.filter(r=>r.kind==='action');const fields=r=>r.payload?.fields||{};const done=actions.filter(r=>['concluída','concluida','concluído','concluido'].includes(String(fields(r).status||'').trim().toLowerCase())&&fields(r).proof?.trim());add('h3','Plano de ação — acompanhamento');add('p',`${actions.length} ações registradas | ${done.length} concluídas com evidência declarada | ${actions.length?fmt(100*done.length/actions.length)+'%':'Não mensurado'} de conclusão sobre ações registradas (não mede aderência sustentada).`);
  for(const r of actions.sort((a,b)=>Number(fields(b).critical==='Sim')-Number(fields(a).critical==='Sim')||(fields(b).priority??-1)-(fields(a).priority??-1))){const f=fields(r);add('p',`${f.critical==='Sim'?'CRÍTICO | ':''}${r.payload.title} | Prioridade: ${Number.isFinite(f.priority)?fmt(f.priority):'Não mensurado'} | ${f.owner||'Sem responsável'} | ${f.due||'Sem prazo'} | ${f.status||'Sem situação'}`);}
 }
+// V14.5.1: resolve only the explicitly referenced diagnostic revision.
+function resolveBaseline(rows,ref){
+ const raw=String(ref??'').normalize('NFKC').trim();
+ if(!raw)return {reason:'Referência inicial não informada.'};
+ const m=raw.match(/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\s*\/\s*(?:revis[aã]o\s*)?(\d+)$/i);
+ if(!m)return {reason:'Formato inválido: informe ID / revisão N.'};
+ const candidates=rows.filter(r=>r.kind==='diagnostic'&&String(r.id).toLowerCase()===m[1].toLowerCase());
+ if(!candidates.length)return {reason:'Diagnóstico inicial não localizado entre os registros autorizados deste projeto.'};
+ const matches=candidates.filter(r=>Number(r.revision)===Number(m[2]));
+ if(matches.length!==1)return {reason:'Revisão inicial não disponível ou ambígua; não substituída automaticamente.'};
+ if(!scores(matches[0]))return {reason:'Diagnóstico inicial sem nove notas válidas.'};
+ return {record:matches[0],reason:''};
+}
 function management145(rows){
  const root=$('management145');root.replaceChildren();root.hidden=!rows||!['admin','leader','consultant'].includes(role());if(root.hidden)return;
  const add=(tag,t,parent=root)=>{const e=document.createElement(tag);e.textContent=t;parent.append(e);return e;};
@@ -90,7 +103,7 @@ function management145(rows){
  add('h3','02 — Cronograma');const wrap=add('div','');wrap.style.overflowX='auto';const table=add('table','',wrap);table.style.width='100%';const head=table.createTHead().insertRow();['Ação','Início','Prazo','Marco','Situação'].forEach(x=>add('th',x,head));const body=table.createTBody();for(const r of [...actions].sort((a,b)=>(f(a).due||'9999').localeCompare(f(b).due||'9999'))){const x=f(r),tr=body.insertRow();[r.payload.title,x.start||'—',x.due||'—',x.phase||'—',x.status||'—'].forEach(v=>add('td',v,tr));}if(!actions.length)add('p','Nenhuma ação registrada.');
  add('h3','03 — Aderência');add('p','Ações com prazo no período até hoje: '+(start?due.length:'Não mensurado')+' | Concluídas no prazo com evidência: '+(start?ontime.length:'Não mensurado')+' | Aderência: '+(due.length&&!unknown.length?fmt(100*ontime.length/due.length)+'%':'Não mensurado'));add('p','Conclusões sem data efetiva: '+unknown.length+' | Ações sem prazo: '+actions.filter(r=>!date(f(r).due)).length+' | Sustentação documentada: '+sustained.length+' ação(ões). Não equivale a verificação independente.');
  add('h3','04 — Alertas');add('p','Ações atrasadas sem conclusão documentada: '+late.length+' | Ações críticas sem conclusão documentada: '+critical.length+'. Riscos de auditoria permanecem na inteligência diagnóstica.');
- add('h3','05 — Evolução');const baseline=rows.find(r=>r.kind==='diagnostic'&&r.id+' / revisão '+r.revision===plan.baselineRef),current=rows.find(r=>r.kind==='diagnostic'&&scores(r));const score=r=>scores(r)?fmt(avg(scores(r))):'Não mensurado';add('p','Inicial: '+score(baseline)+' | Atual: '+score(current)+' | Meta: '+(Number.isFinite(plan.targetScore)?fmt(plan.targetScore):'Não mensurado')+'. Confirme equivalência de escopo; referência inicial exige ID e revisão exatos.');
+ add('h3','05 — Evolução');const resolved=resolveBaseline(rows,plan.baselineRef),baseline=resolved.record,current=rows.find(r=>r.kind==='diagnostic'&&scores(r));const score=r=>scores(r)?fmt(avg(scores(r))):'Não mensurado';add('p','Inicial: '+score(baseline)+' | Atual: '+score(current)+' | Meta: '+(Number.isFinite(plan.targetScore)?fmt(plan.targetScore):'Não mensurado')+'. Confirme equivalência de escopo; referência inicial exige ID e revisão exatos.');if(resolved.reason)add('p',resolved.reason);
  add('h3','06 — Resultados financeiros');const gains=rows.filter(r=>r.kind==='intervention'&&f(r).recordType==='Ganho financeiro');for(const type of ['Estimado','Identificado','Comprovado']){const list=gains.filter(r=>f(r).gainType===type);add('p',type+': '+list.length+' registro(s)');for(const r of list){const x=f(r);add('p',r.payload.title+' | '+(Number.isFinite(x.gainAmount)?x.gainAmount.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}):'Não mensurado')+' | '+(x.gainPeriod||'Sem período')+' | '+(x.gainRef||'Sem referência')+' | '+(x.proof||'Sem comprovação declarada'));}}add('p','Valores não somados: valide sobreposição, período e comprovação antes de consolidar.');
  add('h3','07 — Acompanhamento das fases');for(const phase of ['Diagnosticar','Alinhar','Reestruturar','Acompanhar','Resultados']){const list=rows.filter(r=>r.kind==='intervention'&&f(r).recordType==='Acompanhamento de fase'&&f(r).phase===phase);add('p',phase+' — '+(list.length?list.map(r=>r.payload.title+': '+(f(r).result||'Sem resultado declarado')).join(' | '):'Não mensurado'));}
 }
