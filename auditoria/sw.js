@@ -1,12 +1,12 @@
 const BASE=new URL('./',self.location.href);
-const VERSION='V14.3.1';
-const CACHE='gar-auditoria-shell-v14-3-1';
+const VERSION='V14.4';
+const CACHE='gar-auditoria-shell-v14-4';
 const SHELL=['index.html','config.js','app.js','forms.js','evidence.js','offline.js','manifest.webmanifest','icon-192.png','icon-512.png'].map(p=>new URL(p,BASE).href);
 const CDN='https://cdn.jsdelivr.net/npm/';
 const ENTRY=CDN+'@supabase/supabase-js@2/+esm';
 async function prepare(){
  const c=await caches.open(CACHE);
- for(const url of SHELL){const r=await fetch(new Request(url,{cache:'reload'}));if(!r.ok)throw Error('Arquivo indisponível: '+url);if(url===SHELL[0]&&!(await r.clone().text()).includes("const VERSION='V14.3.1'"))throw Error('Publicação incompleta');await c.put(url,r);}
+ for(const url of SHELL){const r=await fetch(new Request(url,{cache:'reload'}));if(!r.ok)throw Error('Arquivo indisponível: '+url);if(url===SHELL[0]&&!(await r.clone().text()).includes("const VERSION='V14.4'"))throw Error('Publicação incompleta');await c.put(url,r);}
  // Precache the ESM dependency graph, including relative jsDelivr imports.
  const seen=new Set();async function module(url){if(seen.has(url))return;seen.add(url);if(!url.startsWith(CDN))throw Error('Dependência externa inesperada');const r=await fetch(url,{cache:'reload',mode:'cors'});if(!r.ok)throw Error('Dependência indisponível');const src=await r.clone().text();await c.put(url,r);const re=/(?:\bfrom\s*|\bimport\s*(?:\(\s*)?)["']([^"']+)["']/g;for(const m of src.matchAll(re)){if(m[1].startsWith('/')||m[1].startsWith('.')||m[1].startsWith('https:'))await module(new URL(m[1],url).href);}}
  await module(ENTRY);await c.put(new URL('__gar_ready__',BASE).href,new Response(VERSION));
